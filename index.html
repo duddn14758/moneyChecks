@@ -257,6 +257,10 @@ function save() {
 }
 
 function remove(rowIndex) {
+  const ok = confirm("정말 삭제하시겠습니까?\n삭제하면 복구 못함 ⚠️");
+
+  if (!ok) return;
+
   fetch(API, {
     method: "POST",
     body: JSON.stringify({
@@ -264,7 +268,10 @@ function remove(rowIndex) {
       secret: SECRET,
       rowIndex
     })
-  }).then(() => loadData());
+  }).then(() => {
+    alert("삭제 완료");
+    loadData();
+  });
 }
 </script>
 
