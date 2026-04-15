@@ -170,6 +170,16 @@ function renderCategory() {
   });
 }
 
+function formatDate(dateStr) {
+  const date = new Date(dateStr);
+
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+
+  return `${y}-${m}-${d}`;
+}
+  
 function renderAccounts() {
   const accounts = ["💵 기업은행 허브", "🐷 청년도약계좌"];
 
@@ -189,14 +199,14 @@ function renderList() {
   const list = document.getElementById("list");
   list.innerHTML = "";
 
-  records.slice().reverse().forEach(r => {
+  records.forEach(r => {
     list.innerHTML += `
       <div class="record">
-        <div>
-          ${r.content}<br>
-          <small>${r.date}</small>
+        <div class="record-info">
+          <div class="content">${r.content}</div>
+          <small class="date">${formatDate(r.date)}</small>
         </div>
-        <div>
+        <div class="right">
           <div class="amount">${Number(r.amount).toLocaleString()}원</div>
           <button class="danger" onclick="remove(${r.rowIndex})">삭제</button>
         </div>
