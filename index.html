@@ -41,6 +41,7 @@ button {
   border-radius: 12px;
   border: none;
   font-weight: bold;
+  cursor: pointer;
 }
 
 .primary { background: #4CAF50; color: white; }
@@ -59,12 +60,33 @@ button {
 .record {
   display: flex;
   justify-content: space-between;
-  padding: 10px;
+  padding: 12px 0;
   border-bottom: 1px solid #eee;
+}
+
+.record-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  font-weight: 500;
+}
+
+.date {
+  font-size: 12px;
+  color: #888;
+}
+
+.right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .amount {
   font-weight: bold;
+  margin-bottom: 6px;
 }
 </style>
 </head>
@@ -110,6 +132,7 @@ const API = "https://script.google.com/macros/s/AKfycbwnMQhPzY-ZRoZlY49FdV1ed0Nx
 let SECRET = "";
 let categories = [];
 let records = [];
+let accounts = [];
 
 window.onload = function () {
   const saved = localStorage.getItem("secret");
@@ -142,57 +165,47 @@ function initApp() {
 
 function loadData() {
   fetch(API)
-    .then(res => {
-      console.log("응답:", res);
-      return res.json();
-    })
+    .then(res => res.json())
     .then(data => {
-      console.log("데이터:", data);
-
-      categories = data.categories;
-      records = data.records;
+      categories = data.categories || [];
+      records = data.records || [];
+      accounts = data.accounts || [];
 
       renderCategory();
       renderAccounts();
       renderList();
     })
-    .catch(err => {
-      console.error("에러:", err);
-      alert("API 호출 실패");
-    });
+    .catch(() => alert("API 호출 실패"));
 }
 
 function renderCategory() {
   const select = document.getElementById("category");
-  select.innerHTML = "<option>카테고리 선택</option>";
+  select.innerHTML = `<option value="">카테고리 선택</option>`;
+
   categories.forEach(c => {
-    select.innerHTML += `<option>${c.value}</option>`;
+    select.innerHTML += `<option value="${c.value}">${c.value}</option>`;
+  });
+}
+
+function renderAccounts() {
+  const inSelect = document.getElementById("inAccount");
+  const outSelect = document.getElementById("outAccount");
+
+  inSelect.innerHTML = `<option value="">입금계좌</option>`;
+  outSelect.innerHTML = `<option value="">출금계좌</option>`;
+
+  accounts.forEach(acc => {
+    inSelect.innerHTML += `<option value="${acc}">${acc}</option>`;
+    outSelect.innerHTML += `<option value="${acc}">${acc}</option>`;
   });
 }
 
 function formatDate(dateStr) {
   const date = new Date(dateStr);
-
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
-
   return `${y}-${m}-${d}`;
-}
-  
-function renderAccounts() {
-  const accounts = ["💵 기업은행 허브", "🐷 청년도약계좌"];
-
-  const inSelect = document.getElementById("inAccount");
-  const outSelect = document.getElementById("outAccount");
-
-  inSelect.innerHTML = "<option>입금계좌</option>";
-  outSelect.innerHTML = "<option>출금계좌</option>";
-
-  accounts.forEach(acc => {
-    inSelect.innerHTML += `<option>${acc}</option>`;
-    outSelect.innerHTML += `<option>${acc}</option>`;
-  });
 }
 
 function renderList() {
@@ -204,7 +217,7 @@ function renderList() {
       <div class="record">
         <div class="record-info">
           <div class="content">${r.content}</div>
-          <small class="date">${formatDate(r.date)}</small>
+          <div class="date">${formatDate(r.date)}</div>
         </div>
         <div class="right">
           <div class="amount">${Number(r.amount).toLocaleString()}원</div>
@@ -235,7 +248,12 @@ function save() {
   fetch(API, {
     method: "POST",
     body: JSON.stringify(data)
-  }).then(() => location.reload());
+  }).then(() => {
+    // 🔥 새로고침 대신 다시 로드
+    document.getElementById("content").value = "";
+    document.getElementById("amount").value = "";
+    loadData();
+  });
 }
 
 function remove(rowIndex) {
@@ -246,7 +264,7 @@ function remove(rowIndex) {
       secret: SECRET,
       rowIndex
     })
-  }).then(() => location.reload());
+  }).then(() => loadData());
 }
 </script>
 
