@@ -1,75 +1,95 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>가계부 입력</title>
-  <style>
-    body { font-family: sans-serif; padding: 20px; }
-    input, select, button {
-      width: 100%;
-      padding: 10px;
-      margin: 5px 0;
-      font-size: 16px;
-    }
-    button { background: #4CAF50; color: white; }
-  </style>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body { padding:20px; font-family:sans-serif; }
+input, select, button { width:100%; padding:10px; margin:5px 0; }
+.record { border-bottom:1px solid #ccc; padding:10px 0; }
+</style>
 </head>
 <body>
 
-<h2>가계부 입력</h2>
+<h2>가계부</h2>
 
 <input type="date" id="date">
-
-<select id="type">
-  <option>지출  ›  👤 용돈  ›  서희용돈👰</option>
-  <option>자산이동</option>
-</select>
-
-<select id="tag">
-  <option>용돈</option>
-  <option>예적금</option>
-</select>
-
+<select id="category"></select>
 <input type="text" id="content" placeholder="내용">
-
 <input type="number" id="amount" placeholder="금액">
 
-<select id="inAccount">
-  <option value="">없음</option>
-  <option>🐷 청년도약계좌</option>
-</select>
+<button onclick="save()">저장</button>
 
-<select id="outAccount">
-  <option value="">없음</option>
-  <option>💵 기업은행 허브</option>
-</select>
+<hr>
 
-<button onclick="submitData()">저장</button>
+<div id="list"></div>
 
 <script>
-const API_URL = "여기에_Apps_Script_URL";
+const API = "앱스크립트_URL";
+const SECRET = "my-secret-123";
 
-function submitData() {
-  const data = {
-    date: document.getElementById("date").value,
-    type: document.getElementById("type").value,
-    tag: document.getElementById("tag").value,
-    content: document.getElementById("content").value,
-    amount: document.getElementById("amount").value,
-    inAccount: document.getElementById("inAccount").value,
-    outAccount: document.getElementById("outAccount").value
-  };
+let categories = [];
+let records = [];
 
-  fetch(API_URL, {
-    method: "POST",
-    body: JSON.stringify(data)
-  })
-  .then(() => {
-    alert("저장 완료!");
-  })
-  .catch(() => {
-    alert("에러 발생");
+document.getElementById("date").valueAsDate = new Date();
+
+// 초기 로딩
+fetch(API)
+  .then(res => res.json())
+  .then(data => {
+    categories = data.categories;
+    records = data.records;
+
+    renderCategory();
+    renderList();
   });
+
+function renderCategory() {
+  const select = document.getElementById("category");
+
+  select.innerHTML = "";
+
+  categories.forEach(c => {
+    select.innerHTML += `<option>${c.value}</option>`;
+  });
+}
+
+function renderList() {
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  records.reverse().forEach(r => {
+    list.innerHTML += `
+      <div class="record">
+        ${r.date} | ${r.content} | ${r.amount}
+        <button onclick="remove(${r.rowIndex})">삭제</button>
+      </div>
+    `;
+  });
+}
+
+function save() {
+  fetch(API, {
+    method:"POST",
+    body: JSON.stringify({
+      action:"add",
+      secret:SECRET,
+      date: document.getElementById("date").value,
+      type: document.getElementById("category").value,
+      content: document.getElementById("content").value,
+      amount: document.getElementById("amount").value
+    })
+  }).then(()=>location.reload());
+}
+
+function remove(rowIndex) {
+  fetch(API, {
+    method:"POST",
+    body: JSON.stringify({
+      action:"delete",
+      secret:SECRET,
+      rowIndex: rowIndex
+    })
+  }).then(()=>location.reload());
 }
 </script>
 
