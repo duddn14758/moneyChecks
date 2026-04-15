@@ -5,11 +5,12 @@
 <title>가계부</title>
 
 <style>
+* { box-sizing: border-box; }
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   background: #f5f6f8;
   margin: 0;
-  padding: 0;
 }
 
 .container {
@@ -26,62 +27,45 @@ body {
   box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
 
-h2 {
-  text-align: center;
-}
-
 input, select {
   width: 100%;
   padding: 12px;
   margin: 6px 0;
   border-radius: 10px;
   border: 1px solid #ddd;
-  font-size: 16px;
 }
 
 button {
   width: 100%;
   padding: 14px;
-  border: none;
   border-radius: 12px;
-  font-size: 16px;
+  border: none;
   font-weight: bold;
-  cursor: pointer;
 }
 
-.primary {
-  background: #4CAF50;
-  color: white;
+.primary { background: #4CAF50; color: white; }
+.danger { background: #ff4d4f; color: white; }
+.logout { background: #999; color: white; }
+
+.row {
+  display: flex;
+  gap: 10px;
 }
 
-.danger {
-  background: #ff4d4f;
-  color: white;
-}
-
-.logout {
-  background: #999;
-  color: white;
-  margin-bottom: 10px;
+.row > * {
+  flex: 1;
 }
 
 .record {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 12px;
+  padding: 10px;
   border-bottom: 1px solid #eee;
-}
-
-.record-info {
-  display: flex;
-  flex-direction: column;
 }
 
 .amount {
   font-weight: bold;
 }
-
 </style>
 </head>
 
@@ -91,28 +75,29 @@ button {
 
 <h2>🐿️ 가계부</h2>
 
-<!-- 🔐 로그인 -->
 <div id="loginBox" class="card">
-  <input type="password" id="pw" placeholder="비밀번호 입력">
+  <input type="password" id="pw" placeholder="비밀번호">
   <button class="primary" onclick="login()">입장</button>
 </div>
 
-<!-- 📱 앱 -->
 <div id="app" style="display:none;">
 
   <button class="logout" onclick="logout()">로그아웃</button>
 
-  <!-- 입력 카드 -->
   <div class="card">
     <input type="date" id="date">
     <select id="category"></select>
     <input type="text" id="content" placeholder="내용">
     <input type="number" id="amount" placeholder="금액">
 
+    <div class="row">
+      <select id="inAccount"></select>
+      <select id="outAccount"></select>
+    </div>
+
     <button class="primary" onclick="save()">저장</button>
   </div>
 
-  <!-- 리스트 -->
   <div class="card" id="list"></div>
 
 </div>
@@ -126,7 +111,6 @@ let SECRET = "";
 let categories = [];
 let records = [];
 
-// 자동 로그인
 window.onload = function () {
   const saved = localStorage.getItem("secret");
   if (saved) {
@@ -137,7 +121,7 @@ window.onload = function () {
 
 function login() {
   const pw = document.getElementById("pw").value;
-  if (!pw) return alert("비밀번호 입력해줘");
+  if (!pw) return alert("비밀번호 입력");
 
   SECRET = pw;
   localStorage.setItem("secret", pw);
@@ -163,6 +147,7 @@ function loadData() {
       categories = data.categories;
       records = data.records;
       renderCategory();
+      renderAccounts();
       renderList();
     });
 }
@@ -170,9 +155,23 @@ function loadData() {
 function renderCategory() {
   const select = document.getElementById("category");
   select.innerHTML = "<option>카테고리 선택</option>";
-
   categories.forEach(c => {
     select.innerHTML += `<option>${c.value}</option>`;
+  });
+}
+
+function renderAccounts() {
+  const accounts = ["💵 기업은행 허브", "🐷 청년도약계좌"];
+
+  const inSelect = document.getElementById("inAccount");
+  const outSelect = document.getElementById("outAccount");
+
+  inSelect.innerHTML = "<option>입금계좌</option>";
+  outSelect.innerHTML = "<option>출금계좌</option>";
+
+  accounts.forEach(acc => {
+    inSelect.innerHTML += `<option>${acc}</option>`;
+    outSelect.innerHTML += `<option>${acc}</option>`;
   });
 }
 
@@ -183,8 +182,8 @@ function renderList() {
   records.slice().reverse().forEach(r => {
     list.innerHTML += `
       <div class="record">
-        <div class="record-info">
-          <div>${r.content}</div>
+        <div>
+          ${r.content}<br>
           <small>${r.date}</small>
         </div>
         <div>
@@ -202,12 +201,15 @@ function save() {
     secret: SECRET,
     date: document.getElementById("date").value,
     type: document.getElementById("category").value,
+    tag: "",
     content: document.getElementById("content").value,
-    amount: document.getElementById("amount").value
+    amount: document.getElementById("amount").value,
+    inAccount: document.getElementById("inAccount").value,
+    outAccount: document.getElementById("outAccount").value
   };
 
   if (!data.type || !data.amount) {
-    return alert("필수값 입력해줘!");
+    return alert("필수값 입력");
   }
 
   fetch(API, {
