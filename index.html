@@ -1,58 +1,124 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body { padding:20px; font-family:sans-serif; }
-input, select, button { width:100%; padding:10px; margin:5px 0; }
-.record { border-bottom:1px solid #ccc; padding:10px 0; }
-</style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>가계부</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    input, select, button {
+      width: 100%;
+      padding: 12px;
+      margin: 6px 0;
+      font-size: 16px;
+    }
+    button { background: #4CAF50; color: white; font-weight: bold; }
+    .record { border-bottom: 1px solid #ccc; padding: 10px 0; }
+  </style>
 </head>
 <body>
 
-<h2>가계부</h2>
+<h2>🐿️ 가계부</h2>
 
-<input type="date" id="date">
-<select id="category"></select>
-<input type="text" id="content" placeholder="내용">
-<input type="number" id="amount" placeholder="금액">
+<!-- 🔐 로그인 -->
+<div id="loginBox">
+  <input type="password" id="pw" placeholder="비밀번호 입력">
+  <button onclick="login()">입장</button>
+</div>
 
-<button onclick="save()">저장</button>
+<!-- 📱 앱 영역 -->
+<div id="app" style="display:none;">
 
-<hr>
+  <button onclick="logout()">로그아웃</button>
 
-<div id="list"></div>
+  <input type="date" id="date">
+
+  <select id="category"></select>
+
+  <input type="text" id="content" placeholder="내용">
+
+  <input type="number" id="amount" placeholder="금액">
+
+  <button onclick="save()">저장</button>
+
+  <hr>
+
+  <div id="list"></div>
+
+</div>
 
 <script>
-const API = "앱스크립트_URL";
-const SECRET = "my-secret-123";
+const API = "여기에_AppsScript_URL";
 
+let SECRET = "";
 let categories = [];
 let records = [];
 
-document.getElementById("date").valueAsDate = new Date();
+// 👉 자동 로그인
+window.onload = function () {
+  const saved = localStorage.getItem("secret");
 
-// 초기 로딩
-fetch(API)
-  .then(res => res.json())
-  .then(data => {
-    categories = data.categories;
-    records = data.records;
+  if (saved) {
+    SECRET = saved;
+    initApp();
+  }
+};
 
-    renderCategory();
-    renderList();
-  });
+// 👉 로그인
+function login() {
+  const pw = document.getElementById("pw").value;
 
+  if (!pw) {
+    alert("비밀번호 입력해줘");
+    return;
+  }
+
+  SECRET = pw;
+  localStorage.setItem("secret", pw);
+
+  initApp();
+}
+
+// 👉 로그아웃
+function logout() {
+  localStorage.removeItem("secret");
+  location.reload();
+}
+
+// 👉 앱 초기화
+function initApp() {
+  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("app").style.display = "block";
+
+  document.getElementById("date").valueAsDate = new Date();
+
+  loadData();
+}
+
+// 👉 데이터 불러오기
+function loadData() {
+  fetch(API)
+    .then(res => res.json())
+    .then(data => {
+      categories = data.categories;
+      records = data.records;
+
+      renderCategory();
+      renderList();
+    });
+}
+
+// 👉 드롭다운 렌더링
 function renderCategory() {
   const select = document.getElementById("category");
 
-  select.innerHTML = "";
+  select.innerHTML = "<option value=''>카테고리 선택</option>";
 
   categories.forEach(c => {
     select.innerHTML += `<option>${c.value}</option>`;
   });
 }
 
+// 👉 리스트 렌더링
 function renderList() {
   const list = document.getElementById("list");
   list.innerHTML = "";
@@ -67,29 +133,46 @@ function renderList() {
   });
 }
 
+// 👉 저장
 function save() {
+  const data = {
+    action: "add",
+    secret: SECRET,
+    date: document.getElementById("date").value,
+    type: document.getElementById("category").value,
+    content: document.getElementById("content").value,
+    amount: document.getElementById("amount").value
+  };
+
+  if (!data.type || !data.amount) {
+    alert("필수값 입력해줘!");
+    return;
+  }
+
   fetch(API, {
-    method:"POST",
-    body: JSON.stringify({
-      action:"add",
-      secret:SECRET,
-      date: document.getElementById("date").value,
-      type: document.getElementById("category").value,
-      content: document.getElementById("content").value,
-      amount: document.getElementById("amount").value
-    })
-  }).then(()=>location.reload());
+    method: "POST",
+    body: JSON.stringify(data)
+  })
+  .then(() => {
+    alert("저장 완료!");
+    location.reload();
+  });
 }
 
+// 👉 삭제
 function remove(rowIndex) {
   fetch(API, {
-    method:"POST",
+    method: "POST",
     body: JSON.stringify({
-      action:"delete",
-      secret:SECRET,
+      action: "delete",
+      secret: SECRET,
       rowIndex: rowIndex
     })
-  }).then(()=>location.reload());
+  })
+  .then(() => {
+    alert("삭제 완료!");
+    location.reload();
+  });
 }
 </script>
 
