@@ -88,6 +88,44 @@ button {
   font-weight: bold;
   margin-bottom: 6px;
 }
+
+.record {
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.date {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 6px;
+}
+
+.record-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.content {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.amount {
+  font-weight: bold;
+}
+
+button.small {
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+}
 </style>
 </head>
 
@@ -215,14 +253,17 @@ function renderList() {
   records.forEach(r => {
     list.innerHTML += `
       <div class="record">
-        <div class="record-info">
+        
+        <div class="date">${formatDate(r.date)}</div>
+
+        <div class="record-row">
           <div class="content">${r.content}</div>
-          <div class="date">${formatDate(r.date)}</div>
+          <div class="right">
+            <div class="amount">${Number(r.amount).toLocaleString()}원</div>
+            <button class="danger small" onclick="remove(${r.rowIndex})">삭제</button>
+          </div>
         </div>
-        <div class="right">
-          <div class="amount">${Number(r.amount).toLocaleString()}원</div>
-          <button class="danger" onclick="remove(${r.rowIndex})">삭제</button>
-        </div>
+
       </div>
     `;
   });
