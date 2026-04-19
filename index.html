@@ -48,46 +48,8 @@ button {
 .danger { background: #ff4d4f; color: white; }
 .logout { background: #999; color: white; }
 
-.row {
-  display: flex;
-  gap: 10px;
-}
-
-.row > * {
-  flex: 1;
-}
-
-.record {
-  display: flex;
-  justify-content: space-between;
-  padding: 12px 0;
-  border-bottom: 1px solid #eee;
-}
-
-.record-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.content {
-  font-weight: 500;
-}
-
-.date {
-  font-size: 12px;
-  color: #888;
-}
-
-.right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.amount {
-  font-weight: bold;
-  margin-bottom: 6px;
-}
+.row { display: flex; gap: 10px; }
+.row > * { flex: 1; }
 
 .record {
   padding: 12px 0;
@@ -100,7 +62,6 @@ button {
   margin-bottom: 6px;
 }
 
-/* 🔥 핵심 레이아웃 */
 .row-line {
   display: flex;
   justify-content: space-between;
@@ -114,7 +75,6 @@ button {
   margin-right: 10px;
 }
 
-/* 오른쪽 영역 */
 .right {
   display: flex;
   align-items: center;
@@ -130,7 +90,6 @@ button.small {
   padding: 6px 10px;
   font-size: 12px;
   border-radius: 8px;
-  white-space: nowrap;
 }
 </style>
 </head>
@@ -138,7 +97,6 @@ button.small {
 <body>
 
 <div class="container">
-
 <h2>🐿️ 가계부</h2>
 
 <div id="loginBox" class="card">
@@ -153,6 +111,7 @@ button.small {
   <div class="card">
     <input type="date" id="date">
     <select id="category"></select>
+    <input type="text" id="tag" placeholder="태그 (예: 수입, 지출)">
     <input type="text" id="content" placeholder="내용">
     <input type="number" id="amount" placeholder="금액">
 
@@ -167,11 +126,10 @@ button.small {
   <div class="card" id="list"></div>
 
 </div>
-
 </div>
 
 <script>
-const API = "https://script.google.com/macros/s/AKfycbwnMQhPzY-ZRoZlY49FdV1ed0NxJC05iFVT2WF_zfIcE7iezUKWwuzf-SCpEM06u6O6/exec";
+const API = "https://script.google.com/macros/s/AKfycbwTHshsyK5DkxTKjPg-LHpmgVEEMdQ44VsTTIU6CxrvHkVY8m8PF3wLJkzySJ3xXyll/exec";
 
 let SECRET = "";
 let categories = [];
@@ -219,13 +177,12 @@ function loadData() {
       renderAccounts();
       renderList();
     })
-    .catch(() => alert("API 호출 실패"));
+    .catch(() => alert("API 실패"));
 }
 
 function renderCategory() {
   const select = document.getElementById("category");
   select.innerHTML = `<option value="">카테고리 선택</option>`;
-
   categories.forEach(c => {
     select.innerHTML += `<option value="${c.value}">${c.value}</option>`;
   });
@@ -235,8 +192,15 @@ function renderAccounts() {
   const inSelect = document.getElementById("inAccount");
   const outSelect = document.getElementById("outAccount");
 
-  inSelect.innerHTML = `<option value="">입금계좌</option>`;
-  outSelect.innerHTML = `<option value="">출금계좌</option>`;
+  inSelect.innerHTML = `
+    <option value="">입금계좌 (선택안함)</option>
+    <option value="">- 없음 -</option>
+  `;
+
+  outSelect.innerHTML = `
+    <option value="">출금계좌 (선택안함)</option>
+    <option value="">- 없음 -</option>
+  `;
 
   accounts.forEach(acc => {
     inSelect.innerHTML += `<option value="${acc}">${acc}</option>`;
@@ -245,11 +209,8 @@ function renderAccounts() {
 }
 
 function formatDate(dateStr) {
-  const date = new Date(dateStr);
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,"0")}-${d.getDate().toString().padStart(2,"0")}`;
 }
 
 function renderList() {
@@ -259,32 +220,30 @@ function renderList() {
   records.forEach(r => {
     list.innerHTML += `
       <div class="record">
-
         <div class="date">${formatDate(r.date)}</div>
-
         <div class="row-line">
           <div class="content">${r.content}</div>
-
           <div class="right">
             <div class="amount">${Number(r.amount).toLocaleString()}원</div>
             <button class="danger small" onclick="remove(${r.rowIndex})">삭제</button>
           </div>
         </div>
-
       </div>
     `;
   });
 }
 
 function save() {
+  const rawDate = document.getElementById("date").value;
+
   const data = {
     action: "add",
     secret: SECRET,
-    date: document.getElementById("date").value,
+    date: rawDate.replaceAll("-", "/"),
     type: document.getElementById("category").value,
-    tag: "",
+    tag: document.getElementById("tag").value,
     content: document.getElementById("content").value,
-    amount: document.getElementById("amount").value,
+    amount: Number(document.getElementById("amount").value),
     inAccount: document.getElementById("inAccount").value,
     outAccount: document.getElementById("outAccount").value
   };
@@ -297,17 +256,17 @@ function save() {
     method: "POST",
     body: JSON.stringify(data)
   }).then(() => {
-    // 🔥 새로고침 대신 다시 로드
+    alert("저장되었습니다 ✅");   // 👈 추가
+
     document.getElementById("content").value = "";
     document.getElementById("amount").value = "";
+
     loadData();
   });
 }
 
 function remove(rowIndex) {
-  const ok = confirm("정말 삭제하시겠습니까?\n삭제하면 복구 못함 ⚠️");
-
-  if (!ok) return;
+  if (!confirm("정말 삭제하시겠습니까?")) return;
 
   fetch(API, {
     method: "POST",
@@ -316,10 +275,7 @@ function remove(rowIndex) {
       secret: SECRET,
       rowIndex
     })
-  }).then(() => {
-    alert("삭제 완료");
-    loadData();
-  });
+  }).then(() => loadData());
 }
 </script>
 
