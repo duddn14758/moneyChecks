@@ -1,7 +1,7 @@
 {
   "name": "가계부",
   "short_name": "가계부",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#4CAF50",
