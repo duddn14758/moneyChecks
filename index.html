@@ -282,7 +282,7 @@ function remove(rowIndex) {
 }
 
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js")
+  navigator.serviceWorker.register("/moneyChecks/sw.js")
     .then(() => console.log("SW registered"));
 }
 </script>
