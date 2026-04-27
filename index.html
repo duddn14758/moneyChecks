@@ -280,6 +280,11 @@ function remove(rowIndex) {
     })
   }).then(() => loadData());
 }
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js")
+    .then(() => console.log("SW registered"));
+}
 </script>
 
 </body>
