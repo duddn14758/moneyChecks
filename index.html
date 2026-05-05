@@ -51,6 +51,40 @@ button {
 .danger { background: #ff4d4f; color: white; }
 .logout { background: #999; color: white; }
 
+.top-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.top-bar .logout {
+  flex: 1;
+}
+
+.icon-nav {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.icon-nav button {
+  background: #fff;
+  color: #333;
+  border: 1px solid #e5e5e5;
+  font-size: 13px;
+  padding: 10px 6px;
+}
+
+.icon-nav button.active {
+  background: #4CAF50;
+  color: #fff;
+  border-color: #4CAF50;
+}
+
+.view { display: none; }
+.view.active { display: block; }
+
 .row { display: flex; gap: 10px; }
 .row > * { flex: 1; }
 
@@ -94,6 +128,65 @@ button.small {
   font-size: 12px;
   border-radius: 8px;
 }
+
+.secondary {
+  background: #edf3ee;
+  color: #2f6f35;
+}
+
+.empty {
+  color: #999;
+  padding: 12px 0;
+  text-align: center;
+}
+
+.stats-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.stats-head input {
+  margin: 0;
+}
+
+.total {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 8px 0 14px;
+}
+
+#expenseChart {
+  width: 100%;
+  max-width: 280px;
+  aspect-ratio: 1;
+  display: block;
+  margin: 0 auto 14px;
+}
+
+.legend-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+}
+
+.legend-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex: 0 0 12px;
+}
 </style>
 </head>
 
@@ -109,35 +202,65 @@ button.small {
 
 <div id="app" style="display:none;">
 
-  <button class="logout" onclick="logout()">로그아웃</button>
-
-  <div class="card">
-    <input type="date" id="date">
-    <select id="category"></select>
-    <input type="text" id="tag" placeholder="태그 (예: 수입, 지출)">
-    <input type="text" id="content" placeholder="내용">
-    <input type="number" id="amount" placeholder="금액">
-
-    <div class="row">
-      <select id="inAccount"></select>
-      <select id="outAccount"></select>
-    </div>
-
-    <button class="primary" onclick="save()">저장</button>
+  <div class="top-bar">
+    <button class="logout" onclick="logout()">로그아웃</button>
   </div>
 
-  <div class="card" id="list"></div>
+  <div class="icon-nav">
+    <button id="navInput" class="active" onclick="showView('input')" title="입력">✍️<br>입력</button>
+    <button id="navHistory" onclick="showView('history')" title="히스토리">🧾<br>히스토리</button>
+    <button id="navStats" onclick="showView('stats')" title="통계">📊<br>통계</button>
+  </div>
+
+  <div id="inputView" class="view active">
+    <div class="card">
+      <input type="date" id="date">
+      <select id="category"></select>
+      <input type="text" id="tag" placeholder="태그 (예: 수입, 지출)">
+      <input type="text" id="content" placeholder="내용">
+      <input type="number" id="amount" placeholder="금액">
+
+      <div class="row">
+        <select id="inAccount"></select>
+        <select id="outAccount"></select>
+      </div>
+
+      <button class="primary" onclick="save()">저장</button>
+    </div>
+  </div>
+
+  <div id="historyView" class="view">
+    <div class="card" id="list"></div>
+    <button id="loadMoreBtn" class="secondary" onclick="loadMoreRecords()" style="display:none;">더보기</button>
+  </div>
+
+  <div id="statsView" class="view">
+    <div class="card">
+      <div class="stats-head">
+        <strong id="statsTitle">이번달 지출</strong>
+        <input type="month" id="statsMonth" onchange="loadStats()">
+      </div>
+      <div id="statsTotal" class="total">0원</div>
+      <canvas id="expenseChart" width="280" height="280"></canvas>
+      <div id="statsLegend"></div>
+    </div>
+  </div>
 
 </div>
 </div>
 
 <script>
-const API = "https://script.google.com/macros/s/AKfycbwTHshsyK5DkxTKjPg-LHpmgVEEMdQ44VsTTIU6CxrvHkVY8m8PF3wLJkzySJ3xXyll/exec";
+const API = "https://script.google.com/macros/s/AKfycbxlLPnT4CNBW6tF1deU0T151dvb7_IrgXO-cZdoQOwLYSbE2Z3XCjoMOUd-zHyZCcVm/exec";
 
 let SECRET = "";
 let categories = [];
 let records = [];
 let accounts = [];
+let recordsNextOffset = 0;
+let recordsHasMore = false;
+let currentView = "input";
+const PAGE_SIZE = 10;
+const CHART_COLORS = ["#4CAF50", "#ff9800", "#42a5f5", "#ec407a", "#ab47bc", "#26a69a", "#8d6e63", "#78909c", "#fdd835", "#ef5350"];
 
 window.onload = function () {
   const saved = localStorage.getItem("secret");
@@ -165,6 +288,7 @@ function initApp() {
   document.getElementById("loginBox").style.display = "none";
   document.getElementById("app").style.display = "block";
   document.getElementById("date").valueAsDate = new Date();
+  document.getElementById("statsMonth").value = getCurrentMonthValue();
   loadData();
 }
 
@@ -173,14 +297,33 @@ function loadData() {
     .then(res => res.json())
     .then(data => {
       categories = data.categories || [];
-      records = data.records || [];
       accounts = data.accounts || [];
 
       renderCategory();
       renderAccounts();
-      renderList();
     })
     .catch(() => alert("API 실패"));
+}
+
+function showView(view) {
+  currentView = view;
+
+  ["input", "history", "stats"].forEach(name => {
+    document.getElementById(`${name}View`).classList.toggle("active", name === view);
+    document.getElementById(`nav${capitalize(name)}`).classList.toggle("active", name === view);
+  });
+
+  if (view === "history") {
+    loadRecords(true);
+  }
+
+  if (view === "stats") {
+    loadStats();
+  }
+}
+
+function capitalize(value) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function renderCategory() {
@@ -220,6 +363,10 @@ function renderList() {
   const list = document.getElementById("list");
   list.innerHTML = "";
 
+  if (!records.length) {
+    list.innerHTML = `<div class="empty">기록이 없습니다.</div>`;
+  }
+
   records.forEach(r => {
     list.innerHTML += `
       <div class="record">
@@ -234,6 +381,28 @@ function renderList() {
       </div>
     `;
   });
+
+  document.getElementById("loadMoreBtn").style.display = recordsHasMore ? "block" : "none";
+}
+
+function loadRecords(reset) {
+  const offset = reset ? 0 : recordsNextOffset;
+
+  fetch(`${API}?action=records&offset=${offset}&limit=${PAGE_SIZE}`)
+    .then(res => res.json())
+    .then(data => {
+      records = reset ? (data.records || []) : records.concat(data.records || []);
+      recordsNextOffset = data.nextOffset || records.length;
+      recordsHasMore = !!data.hasMore;
+      renderList();
+    })
+    .catch(() => alert("히스토리 불러오기 실패"));
+}
+
+function loadMoreRecords() {
+  if (recordsHasMore) {
+    loadRecords(false);
+  }
 }
 
 function save() {
@@ -264,7 +433,13 @@ function save() {
     document.getElementById("content").value = "";
     document.getElementById("amount").value = "";
 
-    loadData();
+    if (currentView === "history") {
+      loadRecords(true);
+    }
+
+    if (currentView === "stats") {
+      loadStats();
+    }
   });
 }
 
@@ -278,7 +453,100 @@ function remove(rowIndex) {
       secret: SECRET,
       rowIndex
     })
-  }).then(() => loadData());
+  }).then(() => loadRecords(true));
+}
+
+function getCurrentMonthValue() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function loadStats() {
+  const monthValue = document.getElementById("statsMonth").value || getCurrentMonthValue();
+  const [year, month] = monthValue.split("-");
+
+  fetch(`${API}?action=monthlyStats&year=${year}&month=${Number(month)}`)
+    .then(res => res.json())
+    .then(renderStats)
+    .catch(() => alert("통계 불러오기 실패"));
+}
+
+function renderStats(data) {
+  const items = data.items || [];
+  const total = Number(data.total) || 0;
+
+  document.getElementById("statsTitle").textContent = `${data.year}년 ${data.month}월 지출`;
+  document.getElementById("statsTotal").textContent = `${total.toLocaleString()}원`;
+
+  drawPieChart(items, total);
+  renderStatsLegend(items, total);
+}
+
+function drawPieChart(items, total) {
+  const canvas = document.getElementById("expenseChart");
+  const ctx = canvas.getContext("2d");
+  const center = canvas.width / 2;
+  const radius = center - 10;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!items.length || !total) {
+    ctx.fillStyle = "#f0f0f0";
+    ctx.beginPath();
+    ctx.arc(center, center, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#999";
+    ctx.font = "bold 16px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("지출 없음", center, center);
+    return;
+  }
+
+  let startAngle = -Math.PI / 2;
+  items.forEach((item, index) => {
+    const slice = (Number(item.amount) / total) * Math.PI * 2;
+    ctx.fillStyle = CHART_COLORS[index % CHART_COLORS.length];
+    ctx.beginPath();
+    ctx.moveTo(center, center);
+    ctx.arc(center, center, radius, startAngle, startAngle + slice);
+    ctx.closePath();
+    ctx.fill();
+    startAngle += slice;
+  });
+
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.arc(center, center, radius * 0.45, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function renderStatsLegend(items, total) {
+  const legend = document.getElementById("statsLegend");
+
+  if (!items.length || !total) {
+    legend.innerHTML = `<div class="empty">이번달 지출 기록이 없습니다.</div>`;
+    return;
+  }
+
+  legend.innerHTML = items.map((item, index) => {
+    const amount = Number(item.amount) || 0;
+    const percent = Math.round((amount / total) * 100);
+    return `
+      <div class="legend-item">
+        <div class="legend-label">
+          <span class="swatch" style="background:${CHART_COLORS[index % CHART_COLORS.length]}"></span>
+          <span>${formatCategoryLabel(item.label)}</span>
+        </div>
+        <strong>${amount.toLocaleString()}원 (${percent}%)</strong>
+      </div>
+    `;
+  }).join("");
+}
+
+function formatCategoryLabel(label) {
+  const parts = String(label || "기타").split(">").map(part => part.trim()).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : "기타";
 }
 
 if ("serviceWorker" in navigator) {
