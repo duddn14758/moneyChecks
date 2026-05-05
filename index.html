@@ -251,6 +251,58 @@ button.small {
 
 <script>
 const API = "https://script.google.com/macros/s/AKfycbxlLPnT4CNBW6tF1deU0T151dvb7_IrgXO-cZdoQOwLYSbE2Z3XCjoMOUd-zHyZCcVm/exec";
+const HARDCODED_CATEGORIES = [
+  "수입  ›  👷‍♂️ 근로소득  ›  월급🏢",
+  "수입  ›  💌 경조사  ›  축의금💌",
+  "수입  ›  🥕 부수입  ›  중고거래🥕",
+  "수입  ›  👷‍♂️ 근로소득  ›  보너스·상여금🧧",
+  "지출  ›  🍔 식비  ›  식료품🛒",
+  "지출  ›  🏠 주거·은행  ›  주담대 이자💸",
+  "지출  ›  📶 통신비·구독  ›  휴대폰 요금📱",
+  "지출  ›  🧺 생활  ›  생필품🧼",
+  "지출  ›  ✈️ 여행·휴가  ›  숙박비🛌",
+  "지출  ›  💊 건강  ›  병원🏥",
+  "지출  ›  👤 용돈  ›  서희용돈👰",
+  "지출  ›  🍔 식비  ›  외식·배달🛵",
+  "지출  ›  🏠 주거·은행  ›  관리비🏢",
+  "지출  ›  📶 통신비·구독  ›  인터넷·TV📺",
+  "지출  ›  🧺 생활  ›  잡화·소모품🧸",
+  "지출  ›  ✈️ 여행·휴가  ›  항공료✈️",
+  "지출  ›  🚌 교통  ›  택시🚕",
+  "지출  ›  💊 건강  ›  약국💊",
+  "지출  ›  👤 용돈  ›  영우용돈🤵",
+  "지출  ›  🍔 식비  ›  간식비☕",
+  "지출  ›  📶 통신비·구독  ›  디지털플랫폼🌐",
+  "지출  ›  🧺 생활  ›  가구·가전 🛋️",
+  "지출  ›  ✈️ 여행·휴가  ›  여행 교통비🚕",
+  "지출  ›  🚌 교통  ›  주유·통행료⛽",
+  "지출  ›  💊 건강  ›  건강보조품💊",
+  "지출  ›  🍔 식비  ›  서희 식비",
+  "지출  ›  ✈️ 여행·휴가  ›  여행 식비🍱",
+  "지출  ›  🚌 교통  ›  주차비🅿️",
+  "지출  ›  🏠 주거·은행  ›  연회비💳",
+  "지출  ›  ✈️ 여행·휴가  ›  여행 간식비🧁",
+  "지출  ›  🛡️ 보험·세금  ›  자동차세📄"
+];
+const HARDCODED_ACCOUNTS = [
+  "💵 기업은행 허브",
+  "💳 삼성신용카드(공금)",
+  "💵 카카오계좌(공금)",
+  "💵 카카오계좌(여행)",
+  "💵 영우 CMA",
+  "💵 서희 CMA",
+  "🔒 서희 ISA 중개형",
+  "🐷 청년도약계좌",
+  "📉 주택담보대출",
+  "📈 영우 주식",
+  "🐷 영우 청약",
+  "🐷 서희 청약",
+  "🔒 영우 개인 IRP",
+  "🔒 서희 개인 IRP",
+  "🔒 영우 연금저축",
+  "🔒 서희 연금저축",
+  "🚀 쿠팡신용카드"
+];
 
 let SECRET = "";
 let categories = [];
@@ -259,6 +311,12 @@ let accounts = [];
 let recordsNextOffset = 0;
 let recordsHasMore = false;
 let currentView = "input";
+let recordsLoaded = false;
+let recordsLoading = false;
+let statsData = null;
+let statsLoadedMonth = "";
+let statsLoading = false;
+let dataVersion = 0;
 const PAGE_SIZE = 10;
 const CHART_COLORS = ["#4CAF50", "#ff9800", "#42a5f5", "#ec407a", "#ab47bc", "#26a69a", "#8d6e63", "#78909c", "#fdd835", "#ef5350"];
 
@@ -290,19 +348,15 @@ function initApp() {
   document.getElementById("date").valueAsDate = new Date();
   document.getElementById("statsMonth").value = getCurrentMonthValue();
   loadData();
+  preloadSecondaryData();
 }
 
 function loadData() {
-  fetch(API)
-    .then(res => res.json())
-    .then(data => {
-      categories = data.categories || [];
-      accounts = data.accounts || [];
+  categories = HARDCODED_CATEGORIES;
+  accounts = HARDCODED_ACCOUNTS;
 
-      renderCategory();
-      renderAccounts();
-    })
-    .catch(() => alert("API 실패"));
+  renderCategory();
+  renderAccounts();
 }
 
 function showView(view) {
@@ -314,12 +368,28 @@ function showView(view) {
   });
 
   if (view === "history") {
-    loadRecords(true);
+    if (recordsLoaded) {
+      renderList();
+    } else {
+      loadRecords(true);
+    }
   }
 
   if (view === "stats") {
-    loadStats();
+    const monthValue = document.getElementById("statsMonth").value || getCurrentMonthValue();
+    if (statsData && statsLoadedMonth === monthValue) {
+      renderStats(statsData);
+    } else {
+      loadStats();
+    }
   }
+}
+
+function preloadSecondaryData(force) {
+  setTimeout(() => {
+    loadRecords(true, true, force);
+    loadStats(true, force);
+  }, 200);
 }
 
 function capitalize(value) {
@@ -330,7 +400,8 @@ function renderCategory() {
   const select = document.getElementById("category");
   select.innerHTML = `<option value="">카테고리 선택</option>`;
   categories.forEach(c => {
-    select.innerHTML += `<option value="${c.value}">${c.value}</option>`;
+    const value = c.value || c;
+    select.innerHTML += `<option value="${value}">${value}</option>`;
   });
 }
 
@@ -385,18 +456,38 @@ function renderList() {
   document.getElementById("loadMoreBtn").style.display = recordsHasMore ? "block" : "none";
 }
 
-function loadRecords(reset) {
+function loadRecords(reset, silent, force) {
+  if (recordsLoading && !force) {
+    return;
+  }
+
+  recordsLoading = true;
+  const requestVersion = dataVersion;
   const offset = reset ? 0 : recordsNextOffset;
 
   fetch(`${API}?action=records&offset=${offset}&limit=${PAGE_SIZE}`)
     .then(res => res.json())
     .then(data => {
+      if (requestVersion !== dataVersion) {
+        return;
+      }
+
       records = reset ? (data.records || []) : records.concat(data.records || []);
       recordsNextOffset = data.nextOffset || records.length;
       recordsHasMore = !!data.hasMore;
-      renderList();
+      recordsLoaded = true;
+      if (!silent || currentView === "history") {
+        renderList();
+      }
     })
-    .catch(() => alert("히스토리 불러오기 실패"));
+    .catch(() => {
+      if (!silent) {
+        alert("히스토리 불러오기 실패");
+      }
+    })
+    .finally(() => {
+      recordsLoading = false;
+    });
 }
 
 function loadMoreRecords() {
@@ -433,12 +524,20 @@ function save() {
     document.getElementById("content").value = "";
     document.getElementById("amount").value = "";
 
+    dataVersion++;
+    recordsLoaded = false;
+    statsData = null;
+
     if (currentView === "history") {
-      loadRecords(true);
+      loadRecords(true, false, true);
     }
 
     if (currentView === "stats") {
-      loadStats();
+      loadStats(false, true);
+    }
+
+    if (currentView === "input") {
+      preloadSecondaryData(true);
     }
   });
 }
@@ -453,7 +552,12 @@ function remove(rowIndex) {
       secret: SECRET,
       rowIndex
     })
-  }).then(() => loadRecords(true));
+  }).then(() => {
+    dataVersion++;
+    recordsLoaded = false;
+    statsData = null;
+    loadRecords(true, false, true);
+  });
 }
 
 function getCurrentMonthValue() {
@@ -461,14 +565,37 @@ function getCurrentMonthValue() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function loadStats() {
+function loadStats(silent, force) {
+  if (statsLoading && !force) {
+    return;
+  }
+
+  statsLoading = true;
+  const requestVersion = dataVersion;
   const monthValue = document.getElementById("statsMonth").value || getCurrentMonthValue();
   const [year, month] = monthValue.split("-");
 
   fetch(`${API}?action=monthlyStats&year=${year}&month=${Number(month)}`)
     .then(res => res.json())
-    .then(renderStats)
-    .catch(() => alert("통계 불러오기 실패"));
+    .then(data => {
+      if (requestVersion !== dataVersion) {
+        return;
+      }
+
+      statsData = data;
+      statsLoadedMonth = monthValue;
+      if (!silent || currentView === "stats") {
+        renderStats(data);
+      }
+    })
+    .catch(() => {
+      if (!silent) {
+        alert("통계 불러오기 실패");
+      }
+    })
+    .finally(() => {
+      statsLoading = false;
+    });
 }
 
 function renderStats(data) {
